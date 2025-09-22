@@ -10,21 +10,45 @@ const QRScanner = () => {
   const [subjects] = useState(['Mathematics', 'Physics', 'Chemistry', 'English', 'Computer Science']);
   const [scanStatus, setScanStatus] = useState('');
   const [attendanceData, setAttendanceData] = useState({});
+  const [students, setStudents] = useState([]);
   
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const scanIntervalRef = useRef(null);
 
-  // Mock students database for QR code detection
-  const studentsDatabase = {
-    'CS001': { id: '1', name: 'Alice Johnson', rollNo: 'CS001', class: '10-A' },
-    'CS002': { id: '2', name: 'Bob Wilson', rollNo: 'CS002', class: '10-A' },
-    'CS003': { id: '3', name: 'Carol Davis', rollNo: 'CS003', class: '10-B' },
-    'CS004': { id: '4', name: 'David Brown', rollNo: 'CS004', class: '10-B' },
-    'CS005': { id: '5', name: 'Emma Taylor', rollNo: 'CS005', class: '10-A' },
-    '219': { id: '6', name: 'Mahesh', rollNo: '219', class: 'CSE-4' }
-  };
+  // Load students from localStorage
+  useEffect(() => {
+    const loadStudents = () => {
+      const studentsData = JSON.parse(localStorage.getItem('edutrack_students') || '[]');
+      setStudents(studentsData);
+      
+      // Load existing attendance data
+      const existingAttendance = JSON.parse(localStorage.getItem('edutrack_attendance') || '{}');
+      setAttendanceData(existingAttendance);
+    };
+    
+    loadStudents();
+    
+    // Listen for student updates
+    const handleStorageChange = () => {
+      loadStudents();
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('studentsUpdated', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('studentsUpdated', handleStorageChange);
+    };
+  }, []);
+
+  // Mock students database for QR code detection (convert real students to lookup format)
+  const studentsDatabase = students.reduce((acc, student) => {
+    acc[student.rollNo] = student;
+    return acc;
+  }, {});
 
   const getCurrentDate = () => {
     return new Date().toLocaleDateString('en-US', {
