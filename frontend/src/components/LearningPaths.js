@@ -4,74 +4,33 @@ import { apiService, useAuth } from '../App';
 
 const LearningPaths = () => {
   const { user } = useAuth();
-  const [learningPaths, setLearningPaths] = useState([
-    {
-      id: '1',
-      title: 'JavaScript Fundamentals',
-      description: 'Master the basics of JavaScript programming in 7 days',
-      duration: 7,
-      progress: 29,
-      lessons: [
-        { day: 1, title: 'Variables and Data Types', completed: true },
-        { day: 2, title: 'Functions and Scope', completed: true },
-        { day: 3, title: 'Arrays and Objects', completed: false },
-        { day: 4, title: 'DOM Manipulation', completed: false },
-        { day: 5, title: 'Event Handling', completed: false },
-        { day: 6, title: 'Async Programming', completed: false },
-        { day: 7, title: 'Project Implementation', completed: false }
-      ]
-    },
-    {
-      id: '2',
-      title: 'Algebra Basics',
-      description: 'Learn fundamental algebra concepts in 5 days',
-      duration: 5,
-      progress: 20,
-      lessons: [
-        { day: 1, title: 'Linear Equations', completed: true },
-        { day: 2, title: 'Quadratic Equations', completed: false },
-        { day: 3, title: 'Polynomials', completed: false },
-        { day: 4, title: 'Factoring', completed: false },
-        { day: 5, title: 'Advanced Topics', completed: false }
-      ]
-    },
-    {
-      id: '3',
-      title: 'Social Learning Path',
-      description: 'Develop social skills and communication',
-      duration: 10,
-      progress: 0,
-      lessons: [
-        { day: 1, title: 'Communication Basics', completed: false },
-        { day: 2, title: 'Active Listening', completed: false },
-        { day: 3, title: 'Body Language', completed: false },
-        { day: 4, title: 'Conflict Resolution', completed: false },
-        { day: 5, title: 'Team Collaboration', completed: false }
-      ]
-    },
-    {
-      id: '4',
-      title: 'Java Learning Path',
-      description: 'Complete Java programming course',
-      duration: 14,
-      progress: 0,
-      lessons: [
-        { day: 1, title: 'Java Basics', completed: false },
-        { day: 2, title: 'OOP Concepts', completed: false },
-        { day: 3, title: 'Collections Framework', completed: false },
-        { day: 4, title: 'Exception Handling', completed: false },
-        { day: 5, title: 'File I/O', completed: false }
-      ]
-    }
-  ]);
-  
+  const [learningPaths, setLearningPaths] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [pathToDelete, setPathToDelete] = useState(null);
   const [newPath, setNewPath] = useState({
     goal: '',
     subject: '',
     duration: 7
   });
+
+  // Load learning paths from localStorage on component mount
+  useEffect(() => {
+    const savedPaths = localStorage.getItem('edutrack_learning_paths');
+    if (savedPaths) {
+      try {
+        setLearningPaths(JSON.parse(savedPaths));
+      } catch (error) {
+        console.error('Error loading learning paths from localStorage:', error);
+      }
+    }
+  }, []);
+
+  // Save learning paths to localStorage whenever paths array changes
+  useEffect(() => {
+    localStorage.setItem('edutrack_learning_paths', JSON.stringify(learningPaths));
+  }, [learningPaths]);
 
   // Generate YouTube video URL for a concept
   const generateYouTubeVideo = (concept) => {
