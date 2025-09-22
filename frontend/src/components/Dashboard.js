@@ -5,28 +5,32 @@ import { apiService, useAuth } from '../App';
 const Dashboard = () => {
   const { user } = useAuth();
   const [dashboardData, setDashboardData] = useState({
-    totalStudents: 6,
-    subjects: 4,
+    totalStudents: 0,
+    subjects: 5, // Common subjects
     todaysAttendance: 0,
-    learningPaths: 4,
-    weeklyData: [
-      { day: 'Mon', present: 20, absent: 2 },
-      { day: 'Tue', present: 16, absent: 4 },
-      { day: 'Wed', present: 17, absent: 3 },
-      { day: 'Thu', present: 18, absent: 2 },
-      { day: 'Fri', present: 19, absent: 1 },
-      { day: 'Sat', present: 15, absent: 3 },
-      { day: 'Sun', present: 0, absent: 0 }
-    ],
-    recentActivity: [
-      { student: 'Emma Taylor', subject: 'Physics', status: 'present', time: '9/22/2025', method: 'Manual' },
-      { student: 'Emma Taylor', subject: 'English', status: 'present', time: '9/20/2025', method: 'Manual' },
-      { student: 'Emma Taylor', subject: 'Mathematics', status: 'present', time: '9/20/2025', method: 'QR' },
-      { student: 'Emma Taylor', subject: 'Computer Science', status: 'absent', time: '9/20/2025', method: 'QR' }
-    ]
+    learningPaths: 0,
+    weeklyData: [],
+    recentActivity: []
   });
   
   const [loading, setLoading] = useState(false);
+
+  const subjects = ['Mathematics', 'Physics', 'Chemistry', 'English', 'Computer Science'];
+
+  useEffect(() => {
+    loadDashboardData();
+    
+    // Listen for attendance updates
+    const handleAttendanceUpdate = () => {
+      loadDashboardData();
+    };
+    
+    window.addEventListener('attendanceUpdated', handleAttendanceUpdate);
+    
+    return () => {
+      window.removeEventListener('attendanceUpdated', handleAttendanceUpdate);
+    };
+  }, []);
 
   const getCurrentDate = () => {
     const options = { 
@@ -38,10 +42,110 @@ const Dashboard = () => {
     return new Date().toLocaleDateString('en-US', options);
   };
 
-  // Chart component for weekly attendance with hover effects
+  const loadDashboardData = () => {
+    try {
+      setLoading(true);
+      
+      // Load students from localStorage
+      const studentsData = JSON.parse(localStorage.getItem('edutrack_students') || '[]');
+      
+      // Load attendance data from localStorage
+      const attendanceData = JSON.parse(localStorage.getItem('edutrack_attendance') || '{}');
+      
+      // Load learning paths from localStorage
+      const learningPathsData = JSON.parse(localStorage.getItem('edutrack_learning_paths') || '[]');
+      
+      // Calculate today's attendance
+      const today = new Date().toISOString().split('T')[0];
+      const todaysAttendance = Object.keys(attendanceData).filter(key => key.includes(today)).length;
+      
+      // Generate weekly attendance data
+      const weeklyData = generateWeeklyData(attendanceData, studentsData);
+      
+      // Generate recent activity from attendance data
+      const recentActivity = generateRecentActivity(attendanceData);
+      
+      setDashboardData({
+        totalStudents: studentsData.length,
+        subjects: subjects.length,
+        todaysAttendance,
+        learningPaths: learningPathsData.length,
+        weeklyData,
+        recentActivity
+      });
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateWeeklyData = (attendanceData, studentsData) => {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const weeklyData = [];
+    
+    // Get dates for the current week
+    const today = new Date();
+    const currentDay = today.getDay();
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - (currentDay === 0 ? 6 : currentDay - 1));
+    
+    days.forEach((day, index) => {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + index);
+      const dateStr = date.toISOString().split('T')[0];
+      
+      // Count attendance for this date
+      let presentCount = 0;
+      let absentCount = 0;
+      
+      Object.keys(attendanceData).forEach(key => {
+        if (key.includes(dateStr)) {
+          const record = attendanceData[key];
+          if (record.status === 'present') {
+            presentCount++;
+          } else if (record.status === 'absent') {
+            absentCount++;
+          }
+        }
+      });
+      
+      weeklyData.push({
+        day,
+        date: dateStr,
+        present: presentCount,
+        absent: absentCount
+      });
+    });
+    
+    return weeklyData;
+  };
+
+  const generateRecentActivity = (attendanceData) => {
+    const activities = [];
+    
+    // Convert attendance data to activity format
+    Object.keys(attendanceData).forEach(key => {
+      const record = attendanceData[key];
+      activities.push({
+        student: record.student.name,
+        subject: record.subject,
+        status: record.status,
+        time: record.date,
+        method: record.method || 'Manual'
+      });
+    });
+    
+    // Sort by most recent and take top 10
+    return activities
+      .sort((a, b) => new Date(b.time) - new Date(a.time))
+      .slice(0, 10);
+  };
+
+  // Chart component for weekly attendance with hover effects and real-time updates
   const WeeklyChart = ({ data }) => {
     const [hoveredDay, setHoveredDay] = useState(null);
-    const maxValue = Math.max(...data.map(d => d.present + d.absent));
+    const maxValue = Math.max(...data.map(d => d.present + d.absent), 1); // Ensure minimum 1 to avoid division by zero
     
     const calculatePercentage = (present, total) => {
       if (total === 0) return 0;
@@ -52,8 +156,8 @@ const Dashboard = () => {
       <div style={{ height: '300px', position: 'relative' }}>
         <div style={{ display: 'flex', alignItems: 'end', gap: '1rem', padding: '1rem 0', height: '260px' }}>
           {data.map((day, index) => {
-            const presentHeight = maxValue > 0 ? (day.present / maxValue) * 200 : 0;
-            const absentHeight = maxValue > 0 ? (day.absent / maxValue) * 200 : 0;
+            const presentHeight = maxValue > 0 ? Math.max((day.present / maxValue) * 200, 2) : 0;
+            const absentHeight = maxValue > 0 ? Math.max((day.absent / maxValue) * 200, 2) : 0;
             const totalStudents = day.present + day.absent;
             const attendancePercentage = calculatePercentage(day.present, totalStudents);
             
@@ -87,21 +191,27 @@ const Dashboard = () => {
                       bottom: '100%',
                       left: '50%',
                       transform: 'translateX(-50%)',
-                      background: 'rgba(0, 0, 0, 0.8)',
+                      background: 'rgba(0, 0, 0, 0.9)',
                       color: 'white',
-                      padding: '0.5rem',
+                      padding: '0.75rem',
                       borderRadius: 'var(--radius-sm)',
                       fontSize: '0.75rem',
                       whiteSpace: 'nowrap',
                       zIndex: 10,
-                      marginBottom: '0.5rem'
+                      marginBottom: '0.5rem',
+                      backdropFilter: 'blur(10px)'
                     }}>
-                      <div>Present: {day.present}</div>
-                      <div>Absent: {day.absent}</div>
-                      <div>Attendance: {attendancePercentage}%</div>
+                      <div><strong>{day.day}</strong> ({new Date(day.date).toLocaleDateString()})</div>
+                      <div>Present: <span style={{ color: 'var(--green-accent)' }}>{day.present}</span></div>
+                      <div>Absent: <span style={{ color: 'var(--red-accent)' }}>{day.absent}</span></div>
+                      <div>Total: {totalStudents}</div>
+                      {totalStudents > 0 && (
+                        <div>Attendance: <strong>{attendancePercentage}%</strong></div>
+                      )}
                     </div>
                   )}
                   
+                  {/* Present bar */}
                   {day.present > 0 && (
                     <div 
                       style={{ 
@@ -116,6 +226,8 @@ const Dashboard = () => {
                       title={`Present: ${day.present}`}
                     ></div>
                   )}
+                  
+                  {/* Absent bar */}
                   {day.absent > 0 && (
                     <div 
                       style={{ 
@@ -129,18 +241,22 @@ const Dashboard = () => {
                       title={`Absent: ${day.absent}`}
                     ></div>
                   )}
+                  
+                  {/* Empty state */}
                   {day.present === 0 && day.absent === 0 && (
                     <div 
                       style={{ 
                         width: '40px', 
-                        height: '10px', 
+                        height: '8px', 
                         background: 'rgba(255,255,255,0.1)',
                         borderRadius: '4px',
                         transition: 'all 0.3s ease'
                       }}
+                      title="No attendance data"
                     ></div>
                   )}
                 </div>
+                
                 <span style={{ 
                   fontSize: '0.875rem', 
                   color: hoveredDay?.day === day.day ? 'var(--text-primary)' : 'var(--text-secondary)',
@@ -149,7 +265,8 @@ const Dashboard = () => {
                 }}>
                   {day.day}
                 </span>
-                {hoveredDay?.day === day.day && (
+                
+                {hoveredDay?.day === day.day && totalStudents > 0 && (
                   <span style={{ 
                     fontSize: '0.75rem', 
                     color: 'var(--blue-accent)',
@@ -168,35 +285,34 @@ const Dashboard = () => {
           position: 'absolute', 
           right: '1rem', 
           top: '1rem',
-          background: 'rgba(0,0,0,0.3)',
+          background: 'rgba(0,0,0,0.8)',
           padding: '0.75rem',
           borderRadius: '8px',
           fontSize: '0.75rem',
-          backdropFilter: 'blur(10px)'
+          backdropFilter: 'blur(10px)',
+          color: 'white'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
             <div style={{ width: '12px', height: '12px', background: '#00b894', borderRadius: '2px' }}></div>
             <span>Present: {data.reduce((sum, day) => sum + day.present, 0)}</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
             <div style={{ width: '12px', height: '12px', background: '#e17055', borderRadius: '2px' }}></div>
             <span>Absent: {data.reduce((sum, day) => sum + day.absent, 0)}</span>
           </div>
           {hoveredDay && (
             <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.2)' }}>
-              <div style={{ fontWeight: '600', color: 'white' }}>{hoveredDay.day}</div>
-              <div>Rate: {calculatePercentage(hoveredDay.present, hoveredDay.present + hoveredDay.absent)}%</div>
+              <div style={{ fontWeight: '600', color: 'var(--blue-accent)' }}>{hoveredDay.day}</div>
+              <div>Total: {hoveredDay.present + hoveredDay.absent}</div>
+              {(hoveredDay.present + hoveredDay.absent) > 0 && (
+                <div>Rate: {calculatePercentage(hoveredDay.present, hoveredDay.present + hoveredDay.absent)}%</div>
+              )}
             </div>
           )}
         </div>
       </div>
     );
   };
-
-  useEffect(() => {
-    // Load real data here if needed
-    setLoading(false);
-  }, []);
 
   if (loading) {
     return (
@@ -280,8 +396,30 @@ const Dashboard = () => {
         <div className="chart-container">
           <div className="chart-header">
             <h3 className="chart-title">Weekly Attendance Overview</h3>
+            <button 
+              onClick={loadDashboardData}
+              className="btn btn-secondary btn-sm"
+              title="Refresh Data"
+            >
+              🔄
+            </button>
           </div>
-          <WeeklyChart data={dashboardData.weeklyData} />
+          {dashboardData.weeklyData.length > 0 ? (
+            <WeeklyChart data={dashboardData.weeklyData} />
+          ) : (
+            <div style={{ 
+              height: '300px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              flexDirection: 'column',
+              color: 'var(--text-muted)'
+            }}>
+              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📊</div>
+              <p>No attendance data yet</p>
+              <p style={{ fontSize: '0.875rem' }}>Start marking attendance to see the weekly overview</p>
+            </div>
+          )}
         </div>
 
         {/* Recent Activity */}
@@ -291,21 +429,21 @@ const Dashboard = () => {
           </div>
           <div className="card-content">
             <div className="activity-feed">
-              {dashboardData.recentActivity.map((activity, index) => (
-                <div key={index} className="activity-item">
-                  <div className={`activity-status ${activity.status}`}></div>
-                  <div className="activity-details">
-                    <h4>{activity.student}</h4>
-                    <p>{activity.subject} • {activity.status === 'present' ? 'Present' : 'Absent'}</p>
+              {dashboardData.recentActivity.length > 0 ? (
+                dashboardData.recentActivity.map((activity, index) => (
+                  <div key={index} className="activity-item">
+                    <div className={`activity-status ${activity.status}`}></div>
+                    <div className="activity-details">
+                      <h4>{activity.student}</h4>
+                      <p>{activity.subject} • {activity.status === 'present' ? 'Present' : 'Absent'}</p>
+                    </div>
+                    <div className="activity-time">
+                      <div>{new Date(activity.time).toLocaleDateString()}</div>
+                      <div style={{ fontSize: '0.7rem', opacity: '0.7' }}>⚪ {activity.method}</div>
+                    </div>
                   </div>
-                  <div className="activity-time">
-                    <div>{activity.time}</div>
-                    <div style={{ fontSize: '0.7rem', opacity: '0.7' }}>⚪ {activity.method}</div>
-                  </div>
-                </div>
-              ))}
-              
-              {dashboardData.recentActivity.length === 0 && (
+                ))
+              ) : (
                 <div className="empty-state">
                   <div className="empty-icon">📊</div>
                   <p>No recent activity</p>
@@ -335,8 +473,8 @@ const Dashboard = () => {
               <Link to="/learning-paths" className="btn btn-secondary">
                 🎯 Learning Paths
               </Link>
-              <Link to="/attendance" className="btn btn-secondary">
-                📋 Mark Attendance
+              <Link to="/reports" className="btn btn-secondary">
+                📈 Generate Reports
               </Link>
             </div>
           </div>
