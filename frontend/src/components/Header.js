@@ -24,7 +24,8 @@ const Header = () => {
       '/attendance': '📋',
       '/qr-scanner': '📱',
       '/learning-paths': '🎯',
-      '/create-path': '➕'
+      '/create-path': '➕',
+      '/reports': '📈'
     };
     return icons[path] || '📄';
   };
@@ -34,7 +35,7 @@ const Header = () => {
       <div className="header-container">
         <Link to="/" className="logo">
           <div className="logo-icon">ET</div>
-          <span>EduTrack Pro</span>
+          <span>EduTrack</span>
         </Link>
 
         <nav className="nav">
@@ -65,6 +66,12 @@ const Header = () => {
                       <Link to="/qr-scanner" className={`nav-link ${isActive('/qr-scanner')}`}>
                         <span className="nav-link-icon">{getNavIcon('/qr-scanner')}</span>
                         QR Scanner
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to="/reports" className={`nav-link ${isActive('/reports')}`}>
+                        <span className="nav-link-icon">{getNavIcon('/reports')}</span>
+                        Reports
                       </Link>
                     </li>
                   </>

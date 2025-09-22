@@ -3,61 +3,13 @@ import { apiService, useAuth } from '../App';
 
 const StudentsManager = () => {
   const { user } = useAuth();
-  const [students, setStudents] = useState([
-    {
-      id: '1',
-      name: 'Alice Johnson',
-      rollNo: 'CS001',
-      class: '10-A',
-      email: 'cs001@student-demo.com',
-      username: 'cs001'
-    },
-    {
-      id: '2',
-      name: 'Bob Wilson',
-      rollNo: 'CS002',
-      class: '10-A',
-      email: 'cs002@student-demo.com',
-      username: 'cs002'
-    },
-    {
-      id: '3',
-      name: 'Carol Davis',
-      rollNo: 'CS003',
-      class: '10-B',
-      email: 'cs003@student-demo.com',
-      username: 'cs003'
-    },
-    {
-      id: '4',
-      name: 'David Brown',
-      rollNo: 'CS004',
-      class: '10-B',
-      email: 'cs004@student-demo.com',
-      username: 'cs004'
-    },
-    {
-      id: '5',
-      name: 'Emma Taylor',
-      rollNo: 'CS005',
-      class: '10-A',
-      email: 'cs005@student-demo.com',
-      username: 'cs005'
-    },
-    {
-      id: '6',
-      name: 'mahesh',
-      rollNo: '219',
-      class: 'cse-4',
-      email: 'mahesh@gmail.com',
-      username: 'Mahesh'
-    }
-  ]);
-  
+  const [students, setStudents] = useState([]); // Start with empty array - no demo data
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [studentToDelete, setStudentToDelete] = useState(null);
   const [newStudent, setNewStudent] = useState({
     name: '',
     rollNo: '',
@@ -66,17 +18,33 @@ const StudentsManager = () => {
     username: ''
   });
 
+  // Load students from localStorage on component mount
+  useEffect(() => {
+    const savedStudents = localStorage.getItem('edutrack_students');
+    if (savedStudents) {
+      try {
+        setStudents(JSON.parse(savedStudents));
+      } catch (error) {
+        console.error('Error loading students from localStorage:', error);
+      }
+    }
+  }, []);
+
+  // Save students to localStorage whenever students array changes
+  useEffect(() => {
+    localStorage.setItem('edutrack_students', JSON.stringify(students));
+  }, [students]);
+
   // Generate QR Code Data URL
   const generateQRCode = (studentData) => {
-    // Create QR code data - in real implementation, use a proper QR library
     const qrData = JSON.stringify({
       studentId: studentData.id,
       rollNo: studentData.rollNo,
-      name: studentData.name
+      name: studentData.name,
+      timestamp: Date.now()
     });
     
-    // For demo purposes, return a placeholder QR code
-    // In real implementation, use libraries like qrcode.js or react-qr-code
+    // Use QR Server API for generating QR codes
     return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`;
   };
 
@@ -90,13 +58,14 @@ const StudentsManager = () => {
       
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${student.rollNo}_${student.name}_QR.png`;
+      link.download = `${student.rollNo}_${student.name.replace(/\s+/g, '_')}_QR.png`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Failed to download QR code:', error);
+      setError('Failed to download QR code. Please try again.');
     }
   };
 
@@ -113,29 +82,69 @@ const StudentsManager = () => {
     e.preventDefault();
     
     if (!newStudent.name || !newStudent.rollNo || !newStudent.email) {
-      setError('Please fill in all required fields');
+      setError('Please fill in all required fields (Name, Roll No, Email)');
+      return;
+    }
+
+    // Check for duplicate roll number
+    if (students.find(s => s.rollNo.toLowerCase() === newStudent.rollNo.toLowerCase())) {
+      setError('Roll number already exists. Please use a different roll number.');
+      return;
+    }
+
+    // Check for duplicate email
+    if (students.find(s => s.email.toLowerCase() === newStudent.email.toLowerCase())) {
+      setError('Email already exists. Please use a different email.');
       return;
     }
 
     try {
       setLoading(true);
       
-      // In real implementation, call API
       const student = {
         id: Date.now().toString(),
         ...newStudent,
-        username: newStudent.username || newStudent.rollNo
+        username: newStudent.username || newStudent.rollNo,
+        createdAt: new Date().toISOString()
       };
       
       setStudents(prev => [...prev, student]);
       setNewStudent({ name: '', rollNo: '', class: '', email: '', username: '' });
       setShowAddModal(false);
       setError('');
+      
+      // Show success message
+      setTimeout(() => setError(''), 3000);
     } catch (error) {
       console.error('Failed to add student:', error);
       setError('Failed to add student. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Delete student
+  const handleDeleteStudent = (student) => {
+    setStudentToDelete(student);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteStudent = () => {
+    if (studentToDelete) {
+      setStudents(prev => prev.filter(s => s.id !== studentToDelete.id));
+      
+      // Also remove from attendance data
+      const attendanceData = JSON.parse(localStorage.getItem('edutrack_attendance') || '{}');
+      const updatedAttendance = {};
+      Object.keys(attendanceData).forEach(key => {
+        if (!key.includes(studentToDelete.rollNo)) {
+          updatedAttendance[key] = attendanceData[key];
+        }
+      });
+      localStorage.setItem('edutrack_attendance', JSON.stringify(updatedAttendance));
+      
+      setStudentToDelete(null);
+      setShowDeleteModal(false);
     }
   };
 
@@ -160,7 +169,7 @@ const StudentsManager = () => {
             Student Management
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>
-            Manage student profiles and QR codes
+            Manage student profiles and generate QR codes for attendance
           </p>
         </div>
         <button 
@@ -173,8 +182,8 @@ const StudentsManager = () => {
       </div>
 
       {error && (
-        <div className="alert alert-error mb-3">
-          <span>⚠️</span>
+        <div className={`alert ${error.includes('success') ? 'alert-success' : 'alert-error'} mb-3`}>
+          <span>{error.includes('success') ? '✅' : '⚠️'}</span>
           {error}
         </div>
       )}
@@ -185,65 +194,83 @@ const StudentsManager = () => {
           <div className="search-icon">🔍</div>
           <input
             type="text"
-            placeholder="Search students..."
+            placeholder="Search students by name, roll number, class, or email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="search-input"
           />
         </div>
-        <button className="btn btn-secondary">
-          🔽 Filter
-        </button>
+        <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', display: 'flex', alignItems: 'center' }}>
+          Total: {students.length} students
+        </div>
       </div>
 
       {/* Students Grid */}
-      <div className="students-grid">
-        {filteredStudents.map((student, index) => (
-          <div key={student.id} className="student-card animate-slide-in" style={{ animationDelay: `${index * 0.1}s` }}>
-            <div className="student-header">
-              <div className="student-info">
-                <h3>{student.name}</h3>
-                <div className="student-details">
-                  <div><strong>Roll No:</strong> {student.rollNo}</div>
-                  <div><strong>Class:</strong> {student.class}</div>
-                  <div><strong>Email:</strong> {student.email}</div>
-                  <div><strong>Username:</strong> {student.username}</div>
+      {filteredStudents.length > 0 ? (
+        <div className="students-grid">
+          {filteredStudents.map((student, index) => (
+            <div key={student.id} className="student-card animate-slide-in" style={{ animationDelay: `${index * 0.1}s` }}>
+              <div className="student-header">
+                <div className="student-info">
+                  <h3>{student.name}</h3>
+                  <div className="student-details">
+                    <div><strong>Roll No:</strong> {student.rollNo}</div>
+                    <div><strong>Class:</strong> {student.class || 'Not specified'}</div>
+                    <div><strong>Email:</strong> {student.email}</div>
+                    <div><strong>Username:</strong> {student.username}</div>
+                    {student.createdAt && (
+                      <div><strong>Added:</strong> {new Date(student.createdAt).toLocaleDateString()}</div>
+                    )}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div className="qr-actions">
+                    <button
+                      onClick={() => {
+                        const qrUrl = generateQRCode(student);
+                        window.open(qrUrl, '_blank');
+                      }}
+                      className="btn btn-secondary btn-sm"
+                      title="View QR Code"
+                      style={{ padding: '0.5rem', minWidth: '40px', fontSize: '1rem' }}
+                    >
+                      👁️
+                    </button>
+                    <button
+                      onClick={() => downloadQRCode(student)}
+                      className="btn btn-success btn-sm"
+                      title="Download QR Code"
+                      style={{ padding: '0.5rem', minWidth: '40px', fontSize: '1rem' }}
+                    >
+                      ⬇️
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteStudent(student)}
+                    className="btn btn-danger btn-sm"
+                    title="Delete Student"
+                    style={{ padding: '0.5rem', fontSize: '0.875rem' }}
+                  >
+                    🗑️ Delete
+                  </button>
                 </div>
               </div>
-              <div className="qr-actions">
-                <button
-                  onClick={() => downloadQRCode(student)}
-                  className="btn btn-secondary btn-sm"
-                  title="Download QR Code"
-                  style={{ padding: '0.5rem', minWidth: '40px', fontSize: '1rem' }}
-                >
-                  📱
-                </button>
-                <button
-                  onClick={() => downloadQRCode(student)}
-                  className="btn btn-success btn-sm"
-                  title="Download QR Code"
-                  style={{ padding: '0.5rem', minWidth: '40px', fontSize: '1rem' }}
-                >
-                  ⬇️
-                </button>
-              </div>
             </div>
-          </div>
-        ))}
-      </div>
-
-      {filteredStudents.length === 0 && (
+          ))}
+        </div>
+      ) : (
         <div className="glass-card">
           <div className="card-content text-center" style={{ padding: '4rem 2rem' }}>
-            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>👥</div>
+            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>
+              {searchTerm ? '🔍' : '👥'}
+            </div>
             <h3 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '0.5rem' }}>
               {searchTerm ? 'No Students Found' : 'No Students Yet'}
             </h3>
             <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
               {searchTerm 
                 ? `No students match "${searchTerm}". Try a different search term.`
-                : 'Start by adding your first student to get started.'
+                : 'Add your first student to get started with EduTrack.'
               }
             </p>
             {!searchTerm && (
@@ -299,14 +326,14 @@ const StudentsManager = () => {
                       value={newStudent.rollNo}
                       onChange={(e) => setNewStudent({...newStudent, rollNo: e.target.value})}
                       className="form-input"
-                      placeholder="e.g., CS001"
+                      placeholder="e.g., CS001, 2023001"
                       required
                     />
                   </div>
 
                   <div className="form-group">
                     <label htmlFor="class" className="form-label">
-                      Class
+                      Class/Section
                     </label>
                     <input
                       type="text"
@@ -314,7 +341,7 @@ const StudentsManager = () => {
                       value={newStudent.class}
                       onChange={(e) => setNewStudent({...newStudent, class: e.target.value})}
                       className="form-input"
-                      placeholder="e.g., 10-A"
+                      placeholder="e.g., 10-A, Grade 12"
                     />
                   </div>
                 </div>
@@ -373,6 +400,49 @@ const StudentsManager = () => {
                 ) : (
                   '➕ Add Student'
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && studentToDelete && (
+        <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h4 className="modal-title">Delete Student</h4>
+              <button 
+                className="modal-close"
+                onClick={() => setShowDeleteModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-content">
+              <div style={{ textAlign: 'center', padding: '1rem' }}>
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
+                <h3 style={{ marginBottom: '1rem' }}>Are you sure?</h3>
+                <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+                  You are about to delete <strong>{studentToDelete.name}</strong> (Roll No: {studentToDelete.rollNo}).
+                </p>
+                <p style={{ color: 'var(--red-accent)', fontSize: '0.9rem' }}>
+                  This action will also remove all attendance records for this student and cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button 
+                onClick={() => setShowDeleteModal(false)}
+                className="btn btn-secondary"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmDeleteStudent}
+                className="btn btn-danger"
+              >
+                🗑️ Delete Student
               </button>
             </div>
           </div>
