@@ -210,21 +210,34 @@ const StudentsManager = () => {
         <div className="students-grid">
           {filteredStudents.map((student, index) => (
             <div key={student.id} className="student-card animate-slide-in" style={{ animationDelay: `${index * 0.1}s` }}>
-              <div className="student-header">
-                <div className="student-info">
-                  <h3>{student.name}</h3>
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'flex-start', 
+                gap: '1rem',
+                width: '100%'
+              }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h3 style={{ marginBottom: '0.75rem', wordBreak: 'break-word' }}>{student.name}</h3>
                   <div className="student-details">
                     <div><strong>Roll No:</strong> {student.rollNo}</div>
                     <div><strong>Class:</strong> {student.class || 'Not specified'}</div>
-                    <div><strong>Email:</strong> {student.email}</div>
+                    <div><strong>Email:</strong> <span style={{ wordBreak: 'break-all', fontSize: '0.875rem' }}>{student.email}</span></div>
                     <div><strong>Username:</strong> {student.username}</div>
                     {student.createdAt && (
                       <div><strong>Added:</strong> {new Date(student.createdAt).toLocaleDateString()}</div>
                     )}
                   </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <div className="qr-actions">
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: '0.5rem',
+                  alignItems: 'flex-end',
+                  flexShrink: 0,
+                  minWidth: '100px'
+                }}>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <button
                       onClick={() => {
                         const qrUrl = generateQRCode(student);
@@ -232,7 +245,14 @@ const StudentsManager = () => {
                       }}
                       className="btn btn-secondary btn-sm"
                       title="View QR Code"
-                      style={{ padding: '0.5rem', minWidth: '40px', fontSize: '1rem' }}
+                      style={{ 
+                        padding: '0.5rem', 
+                        minWidth: '40px', 
+                        fontSize: '1rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
                     >
                       👁️
                     </button>
@@ -240,7 +260,14 @@ const StudentsManager = () => {
                       onClick={() => downloadQRCode(student)}
                       className="btn btn-success btn-sm"
                       title="Download QR Code"
-                      style={{ padding: '0.5rem', minWidth: '40px', fontSize: '1rem' }}
+                      style={{ 
+                        padding: '0.5rem', 
+                        minWidth: '40px', 
+                        fontSize: '1rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
                     >
                       ⬇️
                     </button>
@@ -249,7 +276,15 @@ const StudentsManager = () => {
                     onClick={() => handleDeleteStudent(student)}
                     className="btn btn-danger btn-sm"
                     title="Delete Student"
-                    style={{ padding: '0.5rem', fontSize: '0.875rem' }}
+                    style={{ 
+                      padding: '0.5rem 0.75rem', 
+                      fontSize: '0.8rem',
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.25rem'
+                    }}
                   >
                     🗑️ Delete
                   </button>
