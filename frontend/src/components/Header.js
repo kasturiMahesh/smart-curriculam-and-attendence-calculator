@@ -38,7 +38,7 @@ const Header = () => {
                     Create Path
                   </Link>
                 </li>
-                {user.role === 'teacher' && (
+                {user && user.role === 'teacher' && (
                   <li>
                     <Link to="/students" className={`nav-link ${isActive('/students')}`}>
                       Students
