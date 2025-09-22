@@ -255,6 +255,14 @@ function App() {
               } 
             />
             <Route 
+              path="/students" 
+              element={
+                <ProtectedRoute>
+                  <StudentsManager />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
               path="/learning-paths" 
               element={
                 <ProtectedRoute>
