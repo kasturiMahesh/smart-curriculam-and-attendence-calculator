@@ -13,8 +13,8 @@ import logging
 import asyncio
 import bcrypt
 import jwt
-from composio import Composio
-from composio_openai import OpenAIProvider
+# from composio import Composio
+# from composio_openai import OpenAIProvider
 import httpx
 import json
 
@@ -59,7 +59,7 @@ EMERGENT_LLM_KEY = "sk-emergent-8Fd925cC7644a35Cd5"
 SECRET_KEY = "your-secret-key-for-jwt-tokens"
 
 # Initialize Composio client
-composio_client = Composio(provider=OpenAIProvider(), api_key=EMERGENT_LLM_KEY)
+# composio_client = Composio(provider=OpenAIProvider(), api_key=EMERGENT_LLM_KEY)
 
 # =============================================================================
 # PYDANTIC MODELS
