@@ -14,6 +14,9 @@ import LearningPaths from './components/LearningPaths';
 import ProgressTracker from './components/ProgressTracker';
 import StudentsManager from './components/StudentsManager';
 import QRScanner from './components/QRScanner';
+import VoiceAssistant from './components/VoiceAssistant';
+import TeacherChatBot from './components/TeacherChatBot';
+import NotificationCenter from './components/NotificationCenter';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
