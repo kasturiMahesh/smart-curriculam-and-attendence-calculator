@@ -67,7 +67,7 @@ SECRET_KEY = "your-secret-key-for-jwt-tokens"
 
 class UserCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
-    email: str = Field(..., regex=r'^[^@]+@[^@]+\.[^@]+$')
+    email: str = Field(..., pattern=r'^[^@]+@[^@]+\.[^@]+$')
     password: str = Field(..., min_length=6)
     role: str = Field(default="student", regex="^(teacher|student)$")
 
