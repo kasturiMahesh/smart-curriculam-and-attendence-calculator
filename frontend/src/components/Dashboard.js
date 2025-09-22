@@ -38,78 +38,156 @@ const Dashboard = () => {
     return new Date().toLocaleDateString('en-US', options);
   };
 
-  // Chart component for weekly attendance
+  // Chart component for weekly attendance with hover effects
   const WeeklyChart = ({ data }) => {
+    const [hoveredDay, setHoveredDay] = useState(null);
     const maxValue = Math.max(...data.map(d => d.present + d.absent));
     
+    const calculatePercentage = (present, total) => {
+      if (total === 0) return 0;
+      return Math.round((present / total) * 100);
+    };
+    
     return (
-      <div style={{ height: '300px', display: 'flex', alignItems: 'end', gap: '1rem', padding: '1rem 0' }}>
-        {data.map((day, index) => {
-          const presentHeight = (day.present / maxValue) * 200;
-          const absentHeight = (day.absent / maxValue) * 200;
-          
-          return (
-            <div key={day.day} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '220px', justifyContent: 'end' }}>
-                {day.present > 0 && (
-                  <div 
-                    style={{ 
-                      width: '40px', 
-                      height: `${presentHeight}px`, 
-                      background: '#00b894',
-                      borderRadius: '4px 4px 0 0',
-                      marginBottom: '2px'
-                    }}
-                    title={`Present: ${day.present}`}
-                  ></div>
-                )}
-                {day.absent > 0 && (
-                  <div 
-                    style={{ 
-                      width: '40px', 
-                      height: `${absentHeight}px`, 
-                      background: '#e17055',
-                      borderRadius: '0 0 4px 4px'
-                    }}
-                    title={`Absent: ${day.absent}`}
-                  ></div>
-                )}
-                {day.present === 0 && day.absent === 0 && (
-                  <div 
-                    style={{ 
-                      width: '40px', 
-                      height: '10px', 
-                      background: 'rgba(255,255,255,0.1)',
-                      borderRadius: '4px'
-                    }}
-                  ></div>
+      <div style={{ height: '300px', position: 'relative' }}>
+        <div style={{ display: 'flex', alignItems: 'end', gap: '1rem', padding: '1rem 0', height: '260px' }}>
+          {data.map((day, index) => {
+            const presentHeight = maxValue > 0 ? (day.present / maxValue) * 200 : 0;
+            const absentHeight = maxValue > 0 ? (day.absent / maxValue) * 200 : 0;
+            const totalStudents = day.present + day.absent;
+            const attendancePercentage = calculatePercentage(day.present, totalStudents);
+            
+            return (
+              <div 
+                key={day.day} 
+                style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  alignItems: 'center', 
+                  gap: '0.5rem', 
+                  flex: 1,
+                  cursor: 'pointer',
+                  position: 'relative'
+                }}
+                onMouseEnter={() => setHoveredDay(day)}
+                onMouseLeave={() => setHoveredDay(null)}
+              >
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  alignItems: 'center', 
+                  height: '220px', 
+                  justifyContent: 'end',
+                  position: 'relative'
+                }}>
+                  {/* Hover tooltip */}
+                  {hoveredDay?.day === day.day && (
+                    <div style={{
+                      position: 'absolute',
+                      bottom: '100%',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      background: 'rgba(0, 0, 0, 0.8)',
+                      color: 'white',
+                      padding: '0.5rem',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '0.75rem',
+                      whiteSpace: 'nowrap',
+                      zIndex: 10,
+                      marginBottom: '0.5rem'
+                    }}>
+                      <div>Present: {day.present}</div>
+                      <div>Absent: {day.absent}</div>
+                      <div>Attendance: {attendancePercentage}%</div>
+                    </div>
+                  )}
+                  
+                  {day.present > 0 && (
+                    <div 
+                      style={{ 
+                        width: '40px', 
+                        height: `${presentHeight}px`, 
+                        background: hoveredDay?.day === day.day ? '#00a085' : '#00b894',
+                        borderRadius: '4px 4px 0 0',
+                        marginBottom: '2px',
+                        transition: 'all 0.3s ease',
+                        boxShadow: hoveredDay?.day === day.day ? '0 4px 12px rgba(0, 184, 148, 0.4)' : 'none'
+                      }}
+                      title={`Present: ${day.present}`}
+                    ></div>
+                  )}
+                  {day.absent > 0 && (
+                    <div 
+                      style={{ 
+                        width: '40px', 
+                        height: `${absentHeight}px`, 
+                        background: hoveredDay?.day === day.day ? '#d63031' : '#e17055',
+                        borderRadius: '0 0 4px 4px',
+                        transition: 'all 0.3s ease',
+                        boxShadow: hoveredDay?.day === day.day ? '0 4px 12px rgba(225, 112, 85, 0.4)' : 'none'
+                      }}
+                      title={`Absent: ${day.absent}`}
+                    ></div>
+                  )}
+                  {day.present === 0 && day.absent === 0 && (
+                    <div 
+                      style={{ 
+                        width: '40px', 
+                        height: '10px', 
+                        background: 'rgba(255,255,255,0.1)',
+                        borderRadius: '4px',
+                        transition: 'all 0.3s ease'
+                      }}
+                    ></div>
+                  )}
+                </div>
+                <span style={{ 
+                  fontSize: '0.875rem', 
+                  color: hoveredDay?.day === day.day ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  fontWeight: hoveredDay?.day === day.day ? '600' : '400',
+                  transition: 'all 0.3s ease'
+                }}>
+                  {day.day}
+                </span>
+                {hoveredDay?.day === day.day && (
+                  <span style={{ 
+                    fontSize: '0.75rem', 
+                    color: 'var(--blue-accent)',
+                    fontWeight: '600'
+                  }}>
+                    {attendancePercentage}%
+                  </span>
                 )}
               </div>
-              <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                {day.day}
-              </span>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
         
-        {/* Legend */}
+        {/* Dynamic Legend */}
         <div style={{ 
           position: 'absolute', 
           right: '1rem', 
           top: '1rem',
           background: 'rgba(0,0,0,0.3)',
-          padding: '0.5rem',
+          padding: '0.75rem',
           borderRadius: '8px',
-          fontSize: '0.75rem'
+          fontSize: '0.75rem',
+          backdropFilter: 'blur(10px)'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
             <div style={{ width: '12px', height: '12px', background: '#00b894', borderRadius: '2px' }}></div>
-            <span>Present: 0</span>
+            <span>Present: {data.reduce((sum, day) => sum + day.present, 0)}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <div style={{ width: '12px', height: '12px', background: '#e17055', borderRadius: '2px' }}></div>
-            <span>Absent: 0</span>
+            <span>Absent: {data.reduce((sum, day) => sum + day.absent, 0)}</span>
           </div>
+          {hoveredDay && (
+            <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.2)' }}>
+              <div style={{ fontWeight: '600', color: 'white' }}>{hoveredDay.day}</div>
+              <div>Rate: {calculatePercentage(hoveredDay.present, hoveredDay.present + hoveredDay.absent)}%</div>
+            </div>
+          )}
         </div>
       </div>
     );
