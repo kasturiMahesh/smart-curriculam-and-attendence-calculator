@@ -297,6 +297,15 @@ function App() {
             />
           </Routes>
         </main>
+        
+        {/* Global Components */}
+        {user && (
+          <>
+            <VoiceAssistant />
+            <TeacherChatBot />
+            <NotificationCenter />
+          </>
+        )}
       </Router>
     </div>
   );
