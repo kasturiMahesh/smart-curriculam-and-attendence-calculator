@@ -8,9 +8,23 @@ const QRScanner = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [recentScans, setRecentScans] = useState([]);
   const [subjects] = useState(['Mathematics', 'Physics', 'Chemistry', 'English', 'Computer Science']);
+  const [scanStatus, setScanStatus] = useState('');
+  const [attendanceData, setAttendanceData] = useState({});
+  
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
+  const scanIntervalRef = useRef(null);
+
+  // Mock students database for QR code detection
+  const studentsDatabase = {
+    'CS001': { id: '1', name: 'Alice Johnson', rollNo: 'CS001', class: '10-A' },
+    'CS002': { id: '2', name: 'Bob Wilson', rollNo: 'CS002', class: '10-A' },
+    'CS003': { id: '3', name: 'Carol Davis', rollNo: 'CS003', class: '10-B' },
+    'CS004': { id: '4', name: 'David Brown', rollNo: 'CS004', class: '10-B' },
+    'CS005': { id: '5', name: 'Emma Taylor', rollNo: 'CS005', class: '10-A' },
+    '219': { id: '6', name: 'Mahesh', rollNo: '219', class: 'CSE-4' }
+  };
 
   const getCurrentDate = () => {
     return new Date().toLocaleDateString('en-US', {
@@ -22,18 +36,28 @@ const QRScanner = () => {
 
   const startCamera = async () => {
     try {
+      setScanStatus('Starting camera...');
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
+        video: { 
+          facingMode: 'environment', // Use back camera
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
       });
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
         setIsScanning(true);
+        setScanStatus('Camera active - Ready to scan QR codes');
+        
+        // Start QR code detection
+        startQRDetection();
       }
     } catch (error) {
       console.error('Error accessing camera:', error);
-      alert('Unable to access camera. Please check permissions.');
+      setScanStatus('Camera access denied. Please check permissions.');
+      alert('Unable to access camera. Please check permissions and try again.');
     }
   };
 
@@ -42,31 +66,149 @@ const QRScanner = () => {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current);
+    }
     setIsScanning(false);
+    setScanStatus('');
   };
 
-  const simulateQRScan = () => {
-    // Simulate a QR code scan for demo purposes
-    const mockStudents = [
-      { id: '1', name: 'Alice Johnson', rollNo: 'CS001' },
-      { id: '2', name: 'Bob Wilson', rollNo: 'CS002' },
-      { id: '3', name: 'Carol Davis', rollNo: 'CS003' },
-      { id: '4', name: 'Emma Taylor', rollNo: 'CS005' }
-    ];
+  const startQRDetection = () => {
+    // Simulate QR code detection every 3 seconds for demo
+    // In a real implementation, you would use a QR code detection library like jsqr
+    scanIntervalRef.current = setInterval(() => {
+      if (isScanning && videoRef.current && canvasRef.current) {
+        // Simulate QR code detection
+        detectQRCode();
+      }
+    }, 3000);
+  };
+
+  const detectQRCode = () => {
+    // Simulate QR code detection (in real implementation, use jsqr library)
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
     
-    const randomStudent = mockStudents[Math.floor(Math.random() * mockStudents.length)];
+    if (!canvas || !video) return;
+    
+    const context = canvas.getContext('2d');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    // Simulate detecting a QR code randomly
+    if (Math.random() > 0.7) { // 30% chance of detecting a QR code
+      const rollNumbers = Object.keys(studentsDatabase);
+      const randomRoll = rollNumbers[Math.floor(Math.random() * rollNumbers.length)];
+      processQRCode(randomRoll);
+    }
+  };
+
+  const processQRCode = (qrData) => {
+    try {
+      // Parse QR code data
+      let studentData = null;
+      
+      // Try to parse as JSON first (from our generated QR codes)
+      try {
+        const parsed = JSON.parse(qrData);
+        studentData = studentsDatabase[parsed.rollNo] || studentsDatabase[parsed.studentId];
+      } catch (e) {
+        // If not JSON, try direct roll number lookup
+        studentData = studentsDatabase[qrData];
+      }
+      
+      if (!studentData) {
+        setScanStatus(`Unknown QR code: ${qrData}`);
+        return;
+      }
+      
+      // Check if already marked present today
+      const attendanceKey = `${selectedDate}-${selectedSubject}-${studentData.rollNo}`;
+      if (attendanceData[attendanceKey]) {
+        setScanStatus(`${studentData.name} already marked present for ${selectedSubject}`);
+        return;
+      }
+      
+      // Mark attendance
+      markAttendance(studentData);
+      
+    } catch (error) {
+      console.error('Error processing QR code:', error);
+      setScanStatus('Error processing QR code');
+    }
+  };
+
+  const markAttendance = (student) => {
     const scanTime = new Date().toLocaleTimeString();
+    const attendanceKey = `${selectedDate}-${selectedSubject}-${student.rollNo}`;
     
+    // Update attendance data
+    setAttendanceData(prev => ({
+      ...prev,
+      [attendanceKey]: {
+        student,
+        subject: selectedSubject,
+        date: selectedDate,
+        status: 'present',
+        method: 'QR Scanner',
+        time: scanTime
+      }
+    }));
+    
+    // Add to recent scans
     const newScan = {
       id: Date.now(),
-      student: randomStudent,
+      student: student,
       subject: selectedSubject,
       date: selectedDate,
       time: scanTime,
-      status: 'present'
+      status: 'present',
+      method: 'QR Scanner'
     };
     
-    setRecentScans(prev => [newScan, ...prev.slice(0, 4)]);
+    setRecentScans(prev => [newScan, ...prev.slice(0, 9)]);
+    setScanStatus(`✅ ${student.name} marked PRESENT for ${selectedSubject}`);
+    
+    // Clear status after 3 seconds
+    setTimeout(() => {
+      setScanStatus('Camera active - Ready to scan QR codes');
+    }, 3000);
+  };
+
+  const simulateQRScan = () => {
+    const rollNumbers = Object.keys(studentsDatabase);
+    const randomRoll = rollNumbers[Math.floor(Math.random() * rollNumbers.length)];
+    processQRCode(randomRoll);
+  };
+
+  const markManualAttendance = (student, status) => {
+    const scanTime = new Date().toLocaleTimeString();
+    const attendanceKey = `${selectedDate}-${selectedSubject}-${student.rollNo}`;
+    
+    setAttendanceData(prev => ({
+      ...prev,
+      [attendanceKey]: {
+        student,
+        subject: selectedSubject,
+        date: selectedDate,
+        status,
+        method: 'Manual',
+        time: scanTime
+      }
+    }));
+    
+    const newScan = {
+      id: Date.now(),
+      student: student,
+      subject: selectedSubject,
+      date: selectedDate,
+      time: scanTime,
+      status,
+      method: 'Manual'
+    };
+    
+    setRecentScans(prev => [newScan, ...prev.slice(0, 9)]);
   };
 
   useEffect(() => {
@@ -113,9 +255,23 @@ const QRScanner = () => {
       <div className="qr-scanner-container">
         {/* Scanner Panel */}
         <div className="scanner-panel">
-          <h3 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '1.5rem', color: 'var(--text-primary)' }}>
-            QR Code Scanner
-          </h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <h3 style={{ fontSize: '1.5rem', fontWeight: '600', color: 'var(--text-primary)' }}>
+              📱 QR Code Scanner
+            </h3>
+            {scanStatus && (
+              <div style={{ 
+                padding: '0.5rem 1rem', 
+                background: scanStatus.includes('✅') ? 'var(--green-accent)' : 'var(--blue-accent)',
+                color: 'white',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.875rem',
+                maxWidth: '300px'
+              }}>
+                {scanStatus}
+              </div>
+            )}
+          </div>
           
           {/* Controls */}
           <div className="scanner-controls">
@@ -125,6 +281,7 @@ const QRScanner = () => {
                 value={selectedSubject}
                 onChange={(e) => setSelectedSubject(e.target.value)}
                 className="form-select"
+                disabled={isScanning}
               >
                 {subjects.map(subject => (
                   <option key={subject} value={subject}>{subject}</option>
@@ -139,6 +296,7 @@ const QRScanner = () => {
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
                 className="form-input"
+                disabled={isScanning}
               />
             </div>
           </div>
@@ -157,7 +315,23 @@ const QRScanner = () => {
                     objectFit: 'cover'
                   }}
                 />
-                <div className="qr-overlay"></div>
+                <div className="qr-overlay">
+                  <div style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    color: 'var(--orange-accent)',
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    textAlign: 'center',
+                    background: 'rgba(0,0,0,0.7)',
+                    padding: '0.5rem',
+                    borderRadius: 'var(--radius-sm)'
+                  }}>
+                    Point camera at QR code
+                  </div>
+                </div>
               </>
             ) : (
               <div style={{
@@ -168,8 +342,8 @@ const QRScanner = () => {
                 height: '100%',
                 color: 'var(--text-secondary)'
               }}>
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📱</div>
-                <p>Camera not active</p>
+                <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>📱</div>
+                <p style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>Camera not active</p>
                 <p style={{ fontSize: '0.875rem' }}>Click "Start Scanner" to begin</p>
               </div>
             )}
@@ -210,9 +384,14 @@ const QRScanner = () => {
 
         {/* Recent Scans Panel */}
         <div className="recent-scans">
-          <h3 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '1.5rem', color: 'var(--text-primary)' }}>
-            Recent Scans
-          </h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <h3 style={{ fontSize: '1.5rem', fontWeight: '600', color: 'var(--text-primary)' }}>
+              📋 Recent Scans
+            </h3>
+            <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+              {recentScans.filter(scan => scan.date === selectedDate && scan.subject === selectedSubject).length} scans today
+            </div>
+          </div>
           
           {recentScans.length === 0 ? (
             <div className="empty-state">
@@ -221,8 +400,10 @@ const QRScanner = () => {
               <p style={{ fontSize: '0.875rem' }}>Start scanning QR codes to see attendance records</p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {recentScans.map((scan) => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '400px', overflowY: 'auto' }}>
+              {recentScans
+                .filter(scan => scan.date === selectedDate && scan.subject === selectedSubject)
+                .map((scan) => (
                 <div
                   key={scan.id}
                   style={{
@@ -250,12 +431,20 @@ const QRScanner = () => {
                       {scan.student.name}
                     </h4>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                      {scan.subject} • Roll: {scan.student.rollNo}
+                      Roll: {scan.student.rollNo} • {scan.status === 'present' ? 'Present' : 'Absent'}
                     </p>
                   </div>
                   <div style={{ textAlign: 'right', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
                     <div>{scan.time}</div>
-                    <div>{scan.date}</div>
+                    <div style={{ 
+                      background: scan.method === 'QR Scanner' ? 'var(--green-accent)' : 'var(--blue-accent)',
+                      color: 'white',
+                      padding: '0.25rem 0.5rem',
+                      borderRadius: 'var(--radius-sm)',
+                      marginTop: '0.25rem'
+                    }}>
+                      {scan.method}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -264,12 +453,79 @@ const QRScanner = () => {
         </div>
       </div>
 
+      {/* Manual Attendance Section */}
+      <div className="glass-card mt-4">
+        <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
+          <h3 style={{ fontSize: '1.5rem', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+            📝 Manual Attendance
+          </h3>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+            Mark attendance manually if QR scanner is not available
+          </p>
+        </div>
+        <div style={{ padding: '1.5rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
+            {Object.values(studentsDatabase).map((student) => {
+              const attendanceKey = `${selectedDate}-${selectedSubject}-${student.rollNo}`;
+              const isMarked = attendanceData[attendanceKey];
+              
+              return (
+                <div 
+                  key={student.id}
+                  style={{
+                    background: isMarked ? 'rgba(0, 184, 148, 0.1)' : 'rgba(255, 255, 255, 0.05)',
+                    border: `1px solid ${isMarked ? 'var(--green-accent)' : 'var(--border-color)'}`,
+                    borderRadius: 'var(--radius-lg)',
+                    padding: '1rem',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}
+                >
+                  <div>
+                    <h4 style={{ color: 'var(--text-primary)', fontWeight: '500', marginBottom: '0.25rem' }}>
+                      {student.name}
+                    </h4>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                      Roll: {student.rollNo} • Class: {student.class}
+                    </p>
+                    {isMarked && (
+                      <p style={{ color: 'var(--green-accent)', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                        ✅ Marked {isMarked.status} via {isMarked.method}
+                      </p>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      onClick={() => markManualAttendance(student, 'present')}
+                      className="btn btn-success btn-sm"
+                      disabled={isMarked?.status === 'present'}
+                    >
+                      Present
+                    </button>
+                    <button
+                      onClick={() => markManualAttendance(student, 'absent')}
+                      className="btn btn-danger btn-sm"
+                      disabled={isMarked?.status === 'absent'}
+                    >
+                      Absent
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
       {/* Instructions */}
       <div className="glass-card mt-4">
-        <div className="card-header">
-          <h3 className="card-title">How to Use QR Scanner</h3>
+        <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
+          <h3 style={{ fontSize: '1.5rem', fontWeight: '600', color: 'var(--text-primary)' }}>
+            📚 How to Use QR Scanner
+          </h3>
         </div>
-        <div className="card-content">
+        <div style={{ padding: '1.5rem' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '2rem' }}>
             <div style={{ display: 'flex', gap: '1rem' }}>
               <div style={{ fontSize: '2rem' }}>1️⃣</div>
@@ -297,6 +553,16 @@ const QRScanner = () => {
                 <h4 style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Scan QR Codes</h4>
                 <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
                   Students scan their QR codes, and attendance is marked automatically.
+                </p>
+              </div>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <div style={{ fontSize: '2rem' }}>4️⃣</div>
+              <div>
+                <h4 style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Manual Backup</h4>
+                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                  Use manual attendance marking if QR scanning is not available.
                 </p>
               </div>
             </div>
