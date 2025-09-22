@@ -255,10 +255,26 @@ function App() {
               } 
             />
             <Route 
-              path="/students" 
+              path="/learning-paths" 
               element={
                 <ProtectedRoute>
-                  <StudentsManager />
+                  <LearningPaths />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/qr-scanner" 
+              element={
+                <ProtectedRoute>
+                  <QRScanner />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/attendance" 
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
                 </ProtectedRoute>
               } 
             />
