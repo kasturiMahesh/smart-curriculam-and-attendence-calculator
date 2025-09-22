@@ -36,7 +36,13 @@ const QRScanner = () => {
 
   const startCamera = async () => {
     try {
-      setScanStatus('Starting camera...');
+      setScanStatus('🎥 Starting camera...');
+      
+      // Stop any existing stream first
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+      
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { 
           facingMode: 'environment', // Use back camera
@@ -48,16 +54,34 @@ const QRScanner = () => {
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
-        setIsScanning(true);
-        setScanStatus('Camera active - Ready to scan QR codes');
         
-        // Start QR code detection
+        // Wait for video to load
+        await new Promise((resolve) => {
+          videoRef.current.onloadedmetadata = resolve;
+        });
+        
+        setIsScanning(true);
+        setScanStatus('📱 Camera active - Hold QR code in front of camera');
+        
+        // Start QR code detection immediately
         startQRDetection();
       }
     } catch (error) {
       console.error('Error accessing camera:', error);
-      setScanStatus('Camera access denied. Please check permissions.');
-      alert('Unable to access camera. Please check permissions and try again.');
+      let errorMessage = 'Camera access failed. ';
+      
+      if (error.name === 'NotAllowedError') {
+        errorMessage += 'Please allow camera permissions and try again.';
+      } else if (error.name === 'NotFoundError') {
+        errorMessage += 'No camera found on this device.';
+      } else if (error.name === 'NotReadableError') {
+        errorMessage += 'Camera is already in use by another application.';
+      } else {
+        errorMessage += 'Please check camera permissions.';
+      }
+      
+      setScanStatus(`❌ ${errorMessage}`);
+      setIsScanning(false);
     }
   };
 
