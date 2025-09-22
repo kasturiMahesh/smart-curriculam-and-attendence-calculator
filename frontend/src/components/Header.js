@@ -16,12 +16,25 @@ const Header = () => {
     return location.pathname === path ? 'active' : '';
   };
 
+  // Icons for navigation
+  const getNavIcon = (path) => {
+    const icons = {
+      '/dashboard': '📊',
+      '/students': '👥',
+      '/attendance': '📋',
+      '/qr-scanner': '📱',
+      '/learning-paths': '🎯',
+      '/create-path': '➕'
+    };
+    return icons[path] || '📄';
+  };
+
   return (
     <header className="header">
       <div className="header-container">
         <Link to="/" className="logo">
-          <div className="logo-icon">LQ</div>
-          <span>LearnQuest AI</span>
+          <div className="logo-icon">ET</div>
+          <span>EduTrack Pro</span>
         </Link>
 
         <nav className="nav">
@@ -30,21 +43,38 @@ const Header = () => {
               <ul className="nav-links">
                 <li>
                   <Link to="/dashboard" className={`nav-link ${isActive('/dashboard')}`}>
+                    <span className="nav-link-icon">{getNavIcon('/dashboard')}</span>
                     Dashboard
                   </Link>
                 </li>
+                {user.role === 'teacher' && (
+                  <>
+                    <li>
+                      <Link to="/students" className={`nav-link ${isActive('/students')}`}>
+                        <span className="nav-link-icon">{getNavIcon('/students')}</span>
+                        Students
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to="/attendance" className={`nav-link ${isActive('/attendance')}`}>
+                        <span className="nav-link-icon">{getNavIcon('/attendance')}</span>
+                        Attendance
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to="/qr-scanner" className={`nav-link ${isActive('/qr-scanner')}`}>
+                        <span className="nav-link-icon">{getNavIcon('/qr-scanner')}</span>
+                        QR Scanner
+                      </Link>
+                    </li>
+                  </>
+                )}
                 <li>
-                  <Link to="/create-path" className={`nav-link ${isActive('/create-path')}`}>
-                    Create Path
+                  <Link to="/learning-paths" className={`nav-link ${isActive('/learning-paths')}`}>
+                    <span className="nav-link-icon">{getNavIcon('/learning-paths')}</span>
+                    Learning Paths
                   </Link>
                 </li>
-                {user && user.role === 'teacher' && (
-                  <li>
-                    <Link to="/students" className={`nav-link ${isActive('/students')}`}>
-                      Students
-                    </Link>
-                  </li>
-                )}
               </ul>
 
               <div className="user-menu">
@@ -52,8 +82,14 @@ const Header = () => {
                   <div className="user-avatar">
                     {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
                   </div>
-                  <span>{user.name || user.email}</span>
-                  <span className="text-sm">({user.role})</span>
+                  <div>
+                    <div style={{ fontWeight: '500', fontSize: '0.9rem' }}>
+                      {user.name || user.email?.split('@')[0] || 'Demo User'}
+                    </div>
+                    <div className="user-role-badge">
+                      {user.role || 'teacher'}
+                    </div>
+                  </div>
                 </div>
                 <button onClick={handleLogout} className="btn btn-secondary btn-sm">
                   Logout
