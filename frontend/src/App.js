@@ -10,8 +10,10 @@ import Register from './components/Register';
 import Dashboard from './components/Dashboard';
 import LearningPathCreator from './components/LearningPathCreator';
 import LearningPathViewer from './components/LearningPathViewer';
+import LearningPaths from './components/LearningPaths';
 import ProgressTracker from './components/ProgressTracker';
 import StudentsManager from './components/StudentsManager';
+import QRScanner from './components/QRScanner';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
