@@ -106,26 +106,39 @@ const AuthProvider = ({ children }) => {
     // Check if user is logged in on app start
     const token = localStorage.getItem('auth_token');
     if (token) {
-      // Decode token to get user info (simplified - in production use proper JWT decode)
-      try {
-        apiService.setup();
-        // For simplicity, we'll make a health check to verify token validity
-        apiService.healthCheck()
-          .then(() => {
-            // Token is valid, user is logged in
-            // In a real app, you'd decode the JWT to get user info
-            setUser({ token }); // Simplified user object
-            setLoading(false);
-          })
-          .catch(() => {
-            // Token is invalid
+      // Set up axios defaults
+      apiService.setup();
+      // Try to get user info from token or make a simple authenticated request
+      // For now, we'll use a health check to verify token validity
+      apiService.healthCheck()
+        .then(() => {
+          // Token is valid, try to get user info from token
+          try {
+            // Simple JWT decode (not secure, but good enough for demo)
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+              return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            const decoded = JSON.parse(jsonPayload);
+            
+            setUser({
+              id: decoded.user_id,
+              email: decoded.email,
+              role: decoded.role,
+              name: decoded.email.split('@')[0] // Fallback name
+            });
+          } catch (decodeError) {
+            console.error('Token decode failed:', decodeError);
             localStorage.removeItem('auth_token');
-            setLoading(false);
-          });
-      } catch (error) {
-        localStorage.removeItem('auth_token');
-        setLoading(false);
-      }
+          }
+          setLoading(false);
+        })
+        .catch(() => {
+          // Token is invalid
+          localStorage.removeItem('auth_token');
+          setLoading(false);
+        });
     } else {
       setLoading(false);
     }
