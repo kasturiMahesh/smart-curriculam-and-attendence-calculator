@@ -86,7 +86,7 @@ class LearningPathCreate(BaseModel):
     title: str = Field(..., min_length=3, max_length=100)
     topic: str = Field(..., min_length=3, max_length=100)
     duration_days: int = Field(default=7, ge=1, le=30)
-    difficulty_level: str = Field(default="beginner", regex="^(beginner|intermediate|advanced)$")
+    difficulty_level: str = Field(default="beginner", pattern="^(beginner|intermediate|advanced)$")
     max_videos_per_day: int = Field(default=3, ge=1, le=10)
     target_hours_per_day: float = Field(default=2.0, ge=0.5, le=8.0)
     assigned_student_ids: List[str] = Field(default=[])  # For teachers assigning to students
