@@ -113,68 +113,78 @@ const QRScanner = () => {
   };
 
   const startQRDetection = () => {
-    // Simulate QR code detection every 3 seconds for demo
-    // In a real implementation, you would use a QR code detection library like jsqr
+    // Real QR code detection using jsQR library
     scanIntervalRef.current = setInterval(() => {
       if (isScanning && videoRef.current && canvasRef.current) {
-        // Simulate QR code detection
         detectQRCode();
       }
-    }, 3000);
+    }, 100); // Check every 100ms for better responsiveness
   };
 
   const detectQRCode = () => {
-    // Simulate QR code detection (in real implementation, use jsqr library)
     const canvas = canvasRef.current;
     const video = videoRef.current;
     
-    if (!canvas || !video) return;
+    if (!canvas || !video || video.readyState !== video.HAVE_ENOUGH_DATA) return;
     
     const context = canvas.getContext('2d');
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     
-    // Simulate detecting a QR code randomly
-    if (Math.random() > 0.7) { // 30% chance of detecting a QR code
-      const rollNumbers = Object.keys(studentsDatabase);
-      const randomRoll = rollNumbers[Math.floor(Math.random() * rollNumbers.length)];
-      processQRCode(randomRoll);
+    // Get image data for QR detection
+    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+    
+    // Use jsQR to detect QR codes
+    const qrCode = jsQR(imageData.data, imageData.width, imageData.height);
+    
+    if (qrCode) {
+      processQRCode(qrCode.data);
     }
   };
 
-  const processQRCode = (qrData) => {
+  const processQRCode = async (qrData) => {
     try {
       // Parse QR code data
-      let studentData = null;
+      let rollNo = null;
       
       // Try to parse as JSON first (from our generated QR codes)
       try {
         const parsed = JSON.parse(qrData);
-        studentData = studentsDatabase[parsed.rollNo] || studentsDatabase[parsed.studentId];
+        rollNo = parsed.rollNo || parsed.studentId;
       } catch (e) {
         // If not JSON, try direct roll number lookup
-        studentData = studentsDatabase[qrData];
+        rollNo = qrData;
       }
       
-      if (!studentData) {
-        setScanStatus(`Unknown QR code: ${qrData}`);
+      if (!rollNo) {
+        setScanStatus(`❌ Invalid QR code data: ${qrData}`);
         return;
       }
       
-      // Check if already marked present today
-      const attendanceKey = `${selectedDate}-${selectedSubject}-${studentData.rollNo}`;
-      if (attendanceData[attendanceKey]) {
-        setScanStatus(`${studentData.name} already marked present for ${selectedSubject}`);
-        return;
-      }
+      // Call backend API to mark attendance
+      const response = await apiService.get(`/attendance/qr-scan/${rollNo}?subject=${selectedSubject}`);
       
-      // Mark attendance
-      markAttendance(studentData);
+      if (response.data.status === 'already_marked') {
+        setScanStatus(`⚠️ ${response.data.message}`);
+      } else {
+        setScanStatus(`✅ ${response.data.message}`);
+        
+        // Reload recent attendance to update the list
+        await loadRecentAttendance();
+        
+        // Dispatch event to update dashboard
+        window.dispatchEvent(new CustomEvent('attendanceUpdated'));
+      }
       
     } catch (error) {
       console.error('Error processing QR code:', error);
-      setScanStatus('Error processing QR code');
+      
+      if (error.response?.status === 404) {
+        setScanStatus(`❌ Student not found: ${qrData}`);
+      } else {
+        setScanStatus('❌ Error processing QR code');
+      }
     }
   };
 
