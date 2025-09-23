@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../App';
+import { useAuth, apiService } from '../App';
+import jsQR from 'jsqr';
 
 const QRScanner = () => {
   const { user } = useAuth();
@@ -9,7 +10,6 @@ const QRScanner = () => {
   const [recentScans, setRecentScans] = useState([]);
   const [subjects] = useState(['Mathematics', 'Physics', 'Chemistry', 'English', 'Computer Science']);
   const [scanStatus, setScanStatus] = useState('');
-  const [attendanceData, setAttendanceData] = useState({});
   const [students, setStudents] = useState([]);
   
   const videoRef = useRef(null);
@@ -17,38 +17,29 @@ const QRScanner = () => {
   const streamRef = useRef(null);
   const scanIntervalRef = useRef(null);
 
-  // Load students from localStorage
+  // Load students and recent attendance from backend
   useEffect(() => {
-    const loadStudents = () => {
-      const studentsData = JSON.parse(localStorage.getItem('edutrack_students') || '[]');
-      setStudents(studentsData);
-      
-      // Load existing attendance data
-      const existingAttendance = JSON.parse(localStorage.getItem('edutrack_attendance') || '{}');
-      setAttendanceData(existingAttendance);
-    };
-    
     loadStudents();
-    
-    // Listen for student updates
-    const handleStorageChange = () => {
-      loadStudents();
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('studentsUpdated', handleStorageChange);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('studentsUpdated', handleStorageChange);
-    };
+    loadRecentAttendance();
   }, []);
 
-  // Mock students database for QR code detection (convert real students to lookup format)
-  const studentsDatabase = students.reduce((acc, student) => {
-    acc[student.rollNo] = student;
-    return acc;
-  }, {});
+  const loadStudents = async () => {
+    try {
+      const response = await apiService.get('/students');
+      setStudents(response.data || []);
+    } catch (error) {
+      console.error('Error loading students:', error);
+    }
+  };
+
+  const loadRecentAttendance = async () => {
+    try {
+      const response = await apiService.get('/attendance/recent?limit=10');
+      setRecentScans(response.data || []);
+    } catch (error) {
+      console.error('Error loading recent attendance:', error);
+    }
+  };
 
   const getCurrentDate = () => {
     return new Date().toLocaleDateString('en-US', {
