@@ -708,6 +708,9 @@ class StudentResponse(BaseModel):
     email: str
     username: str
     created_at: datetime
+    
+    class Config:
+        populate_by_name = True
 
 @api_router.post("/students", response_model=StudentResponse)
 async def create_student(
