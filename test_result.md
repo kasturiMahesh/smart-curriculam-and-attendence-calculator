@@ -247,12 +247,7 @@ metadata:
 test_plan:
   current_focus:
     - "Add Report Generation API endpoints"
-    - "Fix QR Scanner - Real QR Detection"
-    - "Fix Dashboard Real-time Updates"
-    - "Connect Frontend to Backend APIs"
-  stuck_tasks:
-    - "Fix QR Scanner - Real QR Detection"
-    - "Fix Dashboard Real-time Updates"
+  stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
