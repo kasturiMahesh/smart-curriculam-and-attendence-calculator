@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import os
 import uuid
 import logging
