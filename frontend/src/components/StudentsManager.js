@@ -440,7 +440,6 @@ const StudentsManager = () => {
                 </div>
               </form>
             </div>
-            </div>
           </div>
         </div>
       )}
