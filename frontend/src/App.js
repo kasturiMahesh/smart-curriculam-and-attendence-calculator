@@ -42,6 +42,27 @@ export const apiService = {
     }
   },
 
+  // Generic HTTP methods
+  get: async (endpoint) => {
+    const response = await axios.get(`${API}${endpoint}`);
+    return response;
+  },
+
+  post: async (endpoint, data) => {
+    const response = await axios.post(`${API}${endpoint}`, data);
+    return response;
+  },
+
+  put: async (endpoint, data) => {
+    const response = await axios.put(`${API}${endpoint}`, data);
+    return response;
+  },
+
+  delete: async (endpoint) => {
+    const response = await axios.delete(`${API}${endpoint}`);
+    return response;
+  },
+
   // Auth endpoints
   register: async (userData) => {
     const response = await axios.post(`${API}/auth/register`, userData);
