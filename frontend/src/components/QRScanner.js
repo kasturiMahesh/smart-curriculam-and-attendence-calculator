@@ -428,7 +428,7 @@ const QRScanner = () => {
                   ></div>
                   <div style={{ flex: 1 }}>
                     <h4 style={{ color: 'var(--text-primary)', fontWeight: '500', marginBottom: '0.25rem' }}>
-                      {scan.student.name}
+                      {scan.student_name}
                     </h4>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
                       Roll: {scan.student.rollNo} • {scan.status === 'present' ? 'Present' : 'Absent'}
