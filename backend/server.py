@@ -767,7 +767,7 @@ async def get_students(current_user: dict = Depends(get_current_user)):
             id=student["_id"],
             name=student["name"],
             rollNo=student["rollNo"],
-            class_name=student["class"],
+            **{"class": student.get("class", "")},  # Use the alias properly
             email=student["email"],
             username=student["username"],
             created_at=student["created_at"]
