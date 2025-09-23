@@ -3,7 +3,7 @@ import { apiService, useAuth } from '../App';
 
 const StudentsManager = () => {
   const { user } = useAuth();
-  const [students, setStudents] = useState([]); // Start with empty array - no demo data
+  const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -18,22 +18,23 @@ const StudentsManager = () => {
     username: ''
   });
 
-  // Load students from localStorage on component mount
+  // Load students from backend API on component mount
   useEffect(() => {
-    const savedStudents = localStorage.getItem('edutrack_students');
-    if (savedStudents) {
-      try {
-        setStudents(JSON.parse(savedStudents));
-      } catch (error) {
-        console.error('Error loading students from localStorage:', error);
-      }
-    }
+    loadStudents();
   }, []);
 
-  // Save students to localStorage whenever students array changes
-  useEffect(() => {
-    localStorage.setItem('edutrack_students', JSON.stringify(students));
-  }, [students]);
+  const loadStudents = async () => {
+    try {
+      setLoading(true);
+      const response = await apiService.get('/students');
+      setStudents(response.data || []);
+    } catch (error) {
+      console.error('Error loading students:', error);
+      setError('Failed to load students. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Generate QR Code Data URL
   const generateQRCode = (studentData) => {
