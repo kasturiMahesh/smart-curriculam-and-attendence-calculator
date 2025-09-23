@@ -423,7 +423,7 @@ const StudentsManager = () => {
                 Cancel
               </button>
               <button 
-                onClick={handleAddStudent}
+                type="submit"
                 className="btn btn-primary"
                 disabled={loading}
               >
