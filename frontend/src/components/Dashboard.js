@@ -20,7 +20,7 @@ const Dashboard = () => {
   useEffect(() => {
     loadDashboardData();
     
-    // Listen for attendance updates
+    // Listen for attendance updates from QR scanner
     const handleAttendanceUpdate = () => {
       loadDashboardData();
     };
