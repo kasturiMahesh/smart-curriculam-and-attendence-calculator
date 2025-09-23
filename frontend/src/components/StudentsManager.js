@@ -78,7 +78,7 @@ const StudentsManager = () => {
     student.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Add new student
+  // Add new student using backend API
   const handleAddStudent = async (e) => {
     e.preventDefault();
     
@@ -87,65 +87,64 @@ const StudentsManager = () => {
       return;
     }
 
-    // Check for duplicate roll number
-    if (students.find(s => s.rollNo.toLowerCase() === newStudent.rollNo.toLowerCase())) {
-      setError('Roll number already exists. Please use a different roll number.');
-      return;
-    }
-
-    // Check for duplicate email
-    if (students.find(s => s.email.toLowerCase() === newStudent.email.toLowerCase())) {
-      setError('Email already exists. Please use a different email.');
-      return;
-    }
-
     try {
       setLoading(true);
       
-      const student = {
-        id: Date.now().toString(),
-        ...newStudent,
-        username: newStudent.username || newStudent.rollNo,
-        createdAt: new Date().toISOString()
+      const studentData = {
+        name: newStudent.name,
+        rollNo: newStudent.rollNo,
+        class: newStudent.class,
+        email: newStudent.email,
+        username: newStudent.username || newStudent.rollNo
       };
       
-      setStudents(prev => [...prev, student]);
+      const response = await apiService.post('/students', studentData);
+      
+      // Reload students from backend
+      await loadStudents();
+      
       setNewStudent({ name: '', rollNo: '', class: '', email: '', username: '' });
       setShowAddModal(false);
-      setError('');
+      setError('✅ Student added successfully!');
       
-      // Show success message
+      // Clear success message after 3 seconds
       setTimeout(() => setError(''), 3000);
     } catch (error) {
       console.error('Failed to add student:', error);
-      setError('Failed to add student. Please try again.');
+      const errorMessage = error.response?.data?.detail || 'Failed to add student. Please try again.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  // Delete student
+  // Delete student using backend API
   const handleDeleteStudent = (student) => {
     setStudentToDelete(student);
     setShowDeleteModal(true);
   };
 
-  const confirmDeleteStudent = () => {
+  const confirmDeleteStudent = async () => {
     if (studentToDelete) {
-      setStudents(prev => prev.filter(s => s.id !== studentToDelete.id));
-      
-      // Also remove from attendance data
-      const attendanceData = JSON.parse(localStorage.getItem('edutrack_attendance') || '{}');
-      const updatedAttendance = {};
-      Object.keys(attendanceData).forEach(key => {
-        if (!key.includes(studentToDelete.rollNo)) {
-          updatedAttendance[key] = attendanceData[key];
-        }
-      });
-      localStorage.setItem('edutrack_attendance', JSON.stringify(updatedAttendance));
-      
-      setStudentToDelete(null);
-      setShowDeleteModal(false);
+      try {
+        setLoading(true);
+        await apiService.delete(`/students/${studentToDelete.id}`);
+        
+        // Reload students from backend
+        await loadStudents();
+        
+        setStudentToDelete(null);
+        setShowDeleteModal(false);
+        setError('✅ Student deleted successfully!');
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => setError(''), 3000);
+      } catch (error) {
+        console.error('Failed to delete student:', error);
+        setError('Failed to delete student. Please try again.');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
