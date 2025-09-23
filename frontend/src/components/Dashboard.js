@@ -80,16 +80,6 @@ const Dashboard = () => {
     }
   };
 
-  const getCurrentDate = () => {
-    const options = { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    };
-    return new Date().toLocaleDateString('en-US', options);
-  };
-
   const generateWeeklyData = (attendanceData, studentsData) => {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const weeklyData = [];
