@@ -195,7 +195,8 @@ class EduTrackAPITester:
                     print(f"  ❌ Failed to create student: {student_data['name']} - Missing fields")
             else:
                 error_msg = response.json() if response else "No response"
-                print(f"  ❌ Failed to create student: {student_data['name']} - {error_msg}")
+                status_code = response.status_code if response else "None"
+                print(f"  ❌ Failed to create student: {student_data['name']} - Status: {status_code}, Error: {error_msg}")
         
         if success_count == len(students_data):
             self.log_test("Create Students", True, f"Created {success_count} students successfully")
