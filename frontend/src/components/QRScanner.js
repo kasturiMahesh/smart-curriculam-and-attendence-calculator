@@ -369,22 +369,13 @@ const QRScanner = () => {
                 📹 Start Scanner
               </button>
             ) : (
-              <>
-                <button
-                  onClick={stopCamera}
-                  className="btn btn-danger"
-                  style={{ flex: 1 }}
-                >
-                  ⏹️ Stop Scanner
-                </button>
-                <button
-                  onClick={simulateQRScan}
-                  className="btn btn-success"
-                  style={{ flex: 1 }}
-                >
-                  🎯 Simulate Scan
-                </button>
-              </>
+              <button
+                onClick={stopCamera}
+                className="btn btn-danger"
+                style={{ flex: 1 }}
+              >
+                ⏹️ Stop Scanner
+              </button>
             )}
           </div>
           
