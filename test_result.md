@@ -194,7 +194,7 @@ frontend:
         comment: "Updated Dashboard to use backend APIs instead of localStorage. Real-time attendance updates implemented via event listeners. Need frontend testing to verify dashboard updates correctly."
 
   - task: "Connect Frontend to Backend APIs"
-    implemented: false
+    implemented: true
     working: false
     file: "StudentsManager.js, QRScanner.js, Dashboard.js"
     stuck_count: 0
@@ -204,6 +204,9 @@ frontend:
       - working: false
         agent: "main"
         comment: "Frontend components using localStorage instead of backend APIs. Need to migrate to API calls"
+      - working: false
+        agent: "main"
+        comment: "Updated all frontend components to use backend APIs: StudentsManager uses /api/students endpoints, QRScanner uses attendance APIs, Dashboard uses attendance/weekly and recent endpoints. localStorage usage removed. Need frontend testing to verify API integration."
 
   - task: "Remove Demo/Default Students"
     implemented: true
