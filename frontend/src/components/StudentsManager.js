@@ -224,8 +224,8 @@ const StudentsManager = () => {
                     <div><strong>Class:</strong> {student.class || 'Not specified'}</div>
                     <div><strong>Email:</strong> <span style={{ wordBreak: 'break-all', fontSize: '0.875rem' }}>{student.email}</span></div>
                     <div><strong>Username:</strong> {student.username}</div>
-                    {student.createdAt && (
-                      <div><strong>Added:</strong> {new Date(student.createdAt).toLocaleDateString()}</div>
+                    {student.created_at && (
+                      <div><strong>Added:</strong> {new Date(student.created_at).toLocaleDateString()}</div>
                     )}
                   </div>
                 </div>
