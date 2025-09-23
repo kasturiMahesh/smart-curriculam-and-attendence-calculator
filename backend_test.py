@@ -5,7 +5,7 @@ from datetime import datetime
 import time
 
 class LearnQuestAPITester:
-    def __init__(self, base_url="https://learnquest-ai-1.preview.emergentagent.com/api"):
+    def __init__(self, base_url="https://smartedu-path.preview.emergentagent.com/api"):
         self.base_url = base_url
         self.teacher_token = None
         self.student_token = None
