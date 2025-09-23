@@ -6,14 +6,14 @@ const Dashboard = () => {
   const { user } = useAuth();
   const [dashboardData, setDashboardData] = useState({
     totalStudents: 0,
-    subjects: 5, // Common subjects
+    subjects: 5, // Static for now
     todaysAttendance: 0,
     learningPaths: 0,
     weeklyData: [],
     recentActivity: []
   });
-  
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [hoveredDay, setHoveredDay] = useState(null);
 
   const subjects = ['Mathematics', 'Physics', 'Chemistry', 'English', 'Computer Science'];
 
