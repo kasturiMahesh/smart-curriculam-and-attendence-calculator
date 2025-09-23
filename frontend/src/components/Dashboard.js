@@ -434,11 +434,11 @@ const Dashboard = () => {
                   <div key={index} className="activity-item">
                     <div className={`activity-status ${activity.status}`}></div>
                     <div className="activity-details">
-                      <h4>{activity.student}</h4>
+                      <h4>{activity.student_name}</h4>
                       <p>{activity.subject} • {activity.status === 'present' ? 'Present' : 'Absent'}</p>
                     </div>
                     <div className="activity-time">
-                      <div>{new Date(activity.time).toLocaleDateString()}</div>
+                      <div>{new Date(activity.date).toLocaleDateString()}</div>
                       <div style={{ fontSize: '0.7rem', opacity: '0.7' }}>⚪ {activity.method}</div>
                     </div>
                   </div>
