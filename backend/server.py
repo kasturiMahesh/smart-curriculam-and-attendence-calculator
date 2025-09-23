@@ -689,23 +689,379 @@ async def get_progress(learning_path_id: str, current_user: dict = Depends(get_c
         daily_progress=progress_record["daily_progress"]
     )
 
-# Students management (for teachers)
-@api_router.get("/students")
+# =============================================================================
+# STUDENT MANAGEMENT ENDPOINTS
+# =============================================================================
+
+class StudentCreate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100)
+    rollNo: str = Field(..., min_length=1, max_length=50)
+    class_name: str = Field(default="", max_length=50, alias="class")
+    email: str = Field(..., pattern=r'^[^@]+@[^@]+\.[^@]+$')
+    username: str = Field(default="", max_length=50)
+
+class StudentResponse(BaseModel):
+    id: str
+    name: str
+    rollNo: str
+    class_name: str = Field(alias="class")
+    email: str
+    username: str
+    created_at: datetime
+
+@api_router.post("/students", response_model=StudentResponse)
+async def create_student(
+    student_data: StudentCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new student (for teachers)"""
+    if current_user["role"] != "teacher":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Check for duplicate roll number
+    existing_roll = await db.students.find_one({"rollNo": student_data.rollNo})
+    if existing_roll:
+        raise HTTPException(status_code=400, detail="Roll number already exists")
+    
+    # Check for duplicate email
+    existing_email = await db.students.find_one({"email": student_data.email})
+    if existing_email:
+        raise HTTPException(status_code=400, detail="Email already exists")
+    
+    student_id = str(uuid.uuid4())
+    student_doc = {
+        "_id": student_id,
+        "name": student_data.name,
+        "rollNo": student_data.rollNo,
+        "class": student_data.class_name,
+        "email": student_data.email,
+        "username": student_data.username or student_data.rollNo,
+        "created_at": datetime.utcnow(),
+        "teacher_id": current_user["id"]
+    }
+    
+    await db.students.insert_one(student_doc)
+    
+    return StudentResponse(
+        id=student_id,
+        name=student_data.name,
+        rollNo=student_data.rollNo,
+        class_name=student_data.class_name,
+        email=student_data.email,
+        username=student_doc["username"],
+        created_at=student_doc["created_at"]
+    )
+
+@api_router.get("/students", response_model=List[StudentResponse])
 async def get_students(current_user: dict = Depends(get_current_user)):
     """Get all students (for teachers)"""
     if current_user["role"] != "teacher":
         raise HTTPException(status_code=403, detail="Access denied")
     
-    students = await db.users.find({"role": "student"}).to_list(100)
+    students = await db.students.find({"teacher_id": current_user["id"]}).to_list(1000)
     return [
-        {
-            "id": student["_id"],
-            "name": student["name"],
-            "email": student["email"],
-            "created_at": student["created_at"]
-        }
+        StudentResponse(
+            id=student["_id"],
+            name=student["name"],
+            rollNo=student["rollNo"],
+            class_name=student["class"],
+            email=student["email"],
+            username=student["username"],
+            created_at=student["created_at"]
+        )
         for student in students
     ]
+
+@api_router.delete("/students/{student_id}")
+async def delete_student(
+    student_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a student (for teachers)"""
+    if current_user["role"] != "teacher":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Check if student exists and belongs to teacher
+    student = await db.students.find_one({
+        "_id": student_id,
+        "teacher_id": current_user["id"]
+    })
+    
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    
+    # Delete student
+    await db.students.delete_one({"_id": student_id})
+    
+    # Delete related attendance records
+    await db.attendance.delete_many({"student_id": student_id})
+    
+    return {"message": "Student deleted successfully"}
+
+# =============================================================================
+# ATTENDANCE TRACKING ENDPOINTS
+# =============================================================================
+
+class AttendanceRecord(BaseModel):
+    student_id: str
+    subject: str
+    date: str
+    status: str = Field(pattern="^(present|absent)$")
+    method: str = Field(default="Manual", pattern="^(QR Scanner|Manual)$")
+    time: str
+    notes: str = ""
+
+class AttendanceResponse(BaseModel):
+    id: str
+    student_id: str
+    student_name: str
+    student_rollNo: str
+    subject: str
+    date: str
+    status: str
+    method: str
+    time: str
+    notes: str
+    marked_at: datetime
+
+@api_router.post("/attendance/mark", response_model=AttendanceResponse)
+async def mark_attendance(
+    attendance_data: AttendanceRecord,
+    current_user: dict = Depends(get_current_user)
+):
+    """Mark attendance for a student"""
+    if current_user["role"] != "teacher":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Verify student exists and belongs to teacher
+    student = await db.students.find_one({
+        "_id": attendance_data.student_id,
+        "teacher_id": current_user["id"]
+    })
+    
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    
+    # Check if attendance already marked for this date/subject/student
+    existing_attendance = await db.attendance.find_one({
+        "student_id": attendance_data.student_id,
+        "date": attendance_data.date,
+        "subject": attendance_data.subject
+    })
+    
+    attendance_id = str(uuid.uuid4())
+    
+    if existing_attendance:
+        # Update existing record
+        await db.attendance.update_one(
+            {"_id": existing_attendance["_id"]},
+            {
+                "$set": {
+                    "status": attendance_data.status,
+                    "method": attendance_data.method,
+                    "time": attendance_data.time,
+                    "notes": attendance_data.notes,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        attendance_id = existing_attendance["_id"]
+    else:
+        # Create new record
+        attendance_doc = {
+            "_id": attendance_id,
+            "student_id": attendance_data.student_id,
+            "subject": attendance_data.subject,
+            "date": attendance_data.date,
+            "status": attendance_data.status,
+            "method": attendance_data.method,
+            "time": attendance_data.time,
+            "notes": attendance_data.notes,
+            "teacher_id": current_user["id"],
+            "marked_at": datetime.utcnow()
+        }
+        
+        await db.attendance.insert_one(attendance_doc)
+    
+    return AttendanceResponse(
+        id=attendance_id,
+        student_id=attendance_data.student_id,
+        student_name=student["name"],
+        student_rollNo=student["rollNo"],
+        subject=attendance_data.subject,
+        date=attendance_data.date,
+        status=attendance_data.status,
+        method=attendance_data.method,
+        time=attendance_data.time,
+        notes=attendance_data.notes,
+        marked_at=datetime.utcnow()
+    )
+
+@api_router.get("/attendance/recent", response_model=List[AttendanceResponse])
+async def get_recent_attendance(
+    limit: int = 20,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get recent attendance records"""
+    if current_user["role"] != "teacher":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Get recent attendance with student details
+    pipeline = [
+        {"$match": {"teacher_id": current_user["id"]}},
+        {"$sort": {"marked_at": -1}},
+        {"$limit": limit},
+        {
+            "$lookup": {
+                "from": "students",
+                "localField": "student_id",
+                "foreignField": "_id",
+                "as": "student"
+            }
+        },
+        {"$unwind": "$student"}
+    ]
+    
+    attendance_records = await db.attendance.aggregate(pipeline).to_list(limit)
+    
+    return [
+        AttendanceResponse(
+            id=record["_id"],
+            student_id=record["student_id"],
+            student_name=record["student"]["name"],
+            student_rollNo=record["student"]["rollNo"],
+            subject=record["subject"],
+            date=record["date"],
+            status=record["status"],
+            method=record["method"],
+            time=record["time"],
+            notes=record["notes"],
+            marked_at=record["marked_at"]
+        )
+        for record in attendance_records
+    ]
+
+@api_router.get("/attendance/weekly")
+async def get_weekly_attendance(current_user: dict = Depends(get_current_user)):
+    """Get weekly attendance data for dashboard"""
+    if current_user["role"] != "teacher":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Get dates for current week
+    today = date.today()
+    monday = today - timedelta(days=today.weekday())
+    
+    weekly_data = []
+    days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    
+    for i, day_name in enumerate(days):
+        current_date = monday + timedelta(days=i)
+        date_str = current_date.isoformat()
+        
+        # Count present and absent for this date
+        pipeline = [
+            {
+                "$match": {
+                    "teacher_id": current_user["id"],
+                    "date": date_str
+                }
+            },
+            {
+                "$group": {
+                    "_id": "$status",
+                    "count": {"$sum": 1}
+                }
+            }
+        ]
+        
+        status_counts = await db.attendance.aggregate(pipeline).to_list(10)
+        
+        present = 0
+        absent = 0
+        
+        for status in status_counts:
+            if status["_id"] == "present":
+                present = status["count"]
+            elif status["_id"] == "absent":
+                absent = status["count"]
+        
+        weekly_data.append({
+            "day": day_name,
+            "date": date_str,
+            "present": present,
+            "absent": absent
+        })
+    
+    return weekly_data
+
+@api_router.get("/attendance/qr-scan/{rollNo}")
+async def scan_qr_attendance(
+    rollNo: str,
+    subject: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Process QR code scan for attendance"""
+    if current_user["role"] != "teacher":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Find student by roll number
+    student = await db.students.find_one({
+        "rollNo": rollNo,
+        "teacher_id": current_user["id"]
+    })
+    
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    
+    # Mark attendance automatically
+    today = date.today().isoformat()
+    current_time = datetime.now().strftime("%H:%M:%S")
+    
+    attendance_data = AttendanceRecord(
+        student_id=student["_id"],
+        subject=subject,
+        date=today,
+        status="present",
+        method="QR Scanner",
+        time=current_time
+    )
+    
+    # Use existing mark_attendance logic
+    existing_attendance = await db.attendance.find_one({
+        "student_id": student["_id"],
+        "date": today,
+        "subject": subject
+    })
+    
+    if existing_attendance:
+        return {
+            "message": f"{student['name']} already marked present for {subject}",
+            "student": student,
+            "status": "already_marked"
+        }
+    
+    attendance_id = str(uuid.uuid4())
+    attendance_doc = {
+        "_id": attendance_id,
+        "student_id": student["_id"],
+        "subject": subject,
+        "date": today,
+        "status": "present",
+        "method": "QR Scanner",
+        "time": current_time,
+        "notes": "",
+        "teacher_id": current_user["id"],
+        "marked_at": datetime.utcnow()
+    }
+    
+    await db.attendance.insert_one(attendance_doc)
+    
+    return {
+        "message": f"{student['name']} marked PRESENT for {subject}",
+        "student": student,
+        "status": "marked",
+        "attendance": attendance_doc
+    }
 
 # Health check
 @api_router.get("/health")
