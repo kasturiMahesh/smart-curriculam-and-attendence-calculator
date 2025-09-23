@@ -465,9 +465,12 @@ const QRScanner = () => {
         </div>
         <div style={{ padding: '1.5rem' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
-            {Object.values(studentsDatabase).map((student) => {
-              const attendanceKey = `${selectedDate}-${selectedSubject}-${student.rollNo}`;
-              const isMarked = attendanceData[attendanceKey];
+            {students.map((student) => {
+              const isMarked = recentScans.find(scan => 
+                scan.student.rollNo === student.rollNo && 
+                scan.date === selectedDate && 
+                scan.subject === selectedSubject
+              );
               
               return (
                 <div 
