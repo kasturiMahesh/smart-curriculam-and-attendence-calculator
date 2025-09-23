@@ -188,76 +188,36 @@ const QRScanner = () => {
     }
   };
 
-  const markAttendance = (student) => {
-    const scanTime = new Date().toLocaleTimeString();
-    const attendanceKey = `${selectedDate}-${selectedSubject}-${student.rollNo}`;
-    
-    // Update attendance data
-    setAttendanceData(prev => ({
-      ...prev,
-      [attendanceKey]: {
-        student,
+  const markManualAttendance = async (student, status) => {
+    try {
+      const attendanceData = {
+        student_id: student.id,
         subject: selectedSubject,
         date: selectedDate,
-        status: 'present',
-        method: 'QR Scanner',
-        time: scanTime
-      }
-    }));
-    
-    // Add to recent scans
-    const newScan = {
-      id: Date.now(),
-      student: student,
-      subject: selectedSubject,
-      date: selectedDate,
-      time: scanTime,
-      status: 'present',
-      method: 'QR Scanner'
-    };
-    
-    setRecentScans(prev => [newScan, ...prev.slice(0, 9)]);
-    setScanStatus(`✅ ${student.name} marked PRESENT for ${selectedSubject}`);
-    
-    // Clear status after 3 seconds
-    setTimeout(() => {
-      setScanStatus('Camera active - Ready to scan QR codes');
-    }, 3000);
-  };
-
-  const simulateQRScan = () => {
-    const rollNumbers = Object.keys(studentsDatabase);
-    const randomRoll = rollNumbers[Math.floor(Math.random() * rollNumbers.length)];
-    processQRCode(randomRoll);
-  };
-
-  const markManualAttendance = (student, status) => {
-    const scanTime = new Date().toLocaleTimeString();
-    const attendanceKey = `${selectedDate}-${selectedSubject}-${student.rollNo}`;
-    
-    setAttendanceData(prev => ({
-      ...prev,
-      [attendanceKey]: {
-        student,
-        subject: selectedSubject,
-        date: selectedDate,
-        status,
+        status: status,
         method: 'Manual',
-        time: scanTime
-      }
-    }));
-    
-    const newScan = {
-      id: Date.now(),
-      student: student,
-      subject: selectedSubject,
-      date: selectedDate,
-      time: scanTime,
-      status,
-      method: 'Manual'
-    };
-    
-    setRecentScans(prev => [newScan, ...prev.slice(0, 9)]);
+        time: new Date().toLocaleTimeString()
+      };
+      
+      const response = await apiService.post('/attendance/mark', attendanceData);
+      
+      // Reload recent attendance to update the list
+      await loadRecentAttendance();
+      
+      // Dispatch event to update dashboard
+      window.dispatchEvent(new CustomEvent('attendanceUpdated'));
+      
+      setScanStatus(`✅ ${student.name} marked ${status.toUpperCase()} for ${selectedSubject}`);
+      
+      // Clear status after 3 seconds
+      setTimeout(() => {
+        setScanStatus('');
+      }, 3000);
+      
+    } catch (error) {
+      console.error('Error marking manual attendance:', error);
+      setScanStatus('❌ Error marking attendance');
+    }
   };
 
   useEffect(() => {
