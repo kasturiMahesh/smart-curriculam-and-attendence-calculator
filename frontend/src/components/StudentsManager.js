@@ -412,6 +412,32 @@ const StudentsManager = () => {
                     If empty, roll number will be used as username
                   </div>
                 </div>
+                
+                {/* Move buttons inside form */}
+                <div className="modal-footer" style={{ marginTop: '1.5rem', paddingTop: '0' }}>
+                  <button 
+                    type="button"
+                    onClick={() => setShowAddModal(false)}
+                    className="btn btn-secondary"
+                    disabled={loading}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <>
+                        <div className="loading-spinner" style={{ width: '1rem', height: '1rem' }}></div>
+                        Adding...
+                      </>
+                    ) : (
+                      '➕ Add Student'
+                    )}
+                  </button>
+                </div>
               </form>
             </div>
             <div className="modal-footer">
