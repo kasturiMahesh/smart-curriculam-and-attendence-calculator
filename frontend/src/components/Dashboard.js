@@ -42,31 +42,31 @@ const Dashboard = () => {
     return new Date().toLocaleDateString('en-US', options);
   };
 
-  const loadDashboardData = () => {
+  const loadDashboardData = async () => {
     try {
       setLoading(true);
       
-      // Load students from localStorage
-      const studentsData = JSON.parse(localStorage.getItem('edutrack_students') || '[]');
+      // Load students from backend
+      const studentsResponse = await apiService.get('/students');
+      const students = studentsResponse.data || [];
       
-      // Load attendance data from localStorage
-      const attendanceData = JSON.parse(localStorage.getItem('edutrack_attendance') || '{}');
+      // Load weekly attendance data from backend
+      const weeklyResponse = await apiService.get('/attendance/weekly');
+      const weeklyData = weeklyResponse.data || [];
       
-      // Load learning paths from localStorage
-      const learningPathsData = JSON.parse(localStorage.getItem('edutrack_learning_paths') || '[]');
+      // Load recent activity
+      const recentResponse = await apiService.get('/attendance/recent?limit=10');
+      const recentActivity = recentResponse.data || [];
       
       // Calculate today's attendance
       const today = new Date().toISOString().split('T')[0];
-      const todaysAttendance = Object.keys(attendanceData).filter(key => key.includes(today)).length;
+      const todaysAttendance = recentActivity.filter(activity => activity.date === today).length;
       
-      // Generate weekly attendance data
-      const weeklyData = generateWeeklyData(attendanceData, studentsData);
-      
-      // Generate recent activity from attendance data
-      const recentActivity = generateRecentActivity(attendanceData);
+      // Load learning paths from localStorage (still using localStorage for learning paths)
+      const learningPathsData = JSON.parse(localStorage.getItem('edutrack_learning_paths') || '[]');
       
       setDashboardData({
-        totalStudents: studentsData.length,
+        totalStudents: students.length,
         subjects: subjects.length,
         todaysAttendance,
         learningPaths: learningPathsData.length,
