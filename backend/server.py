@@ -56,7 +56,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 # API Keys and Configuration
 GOOGLE_API_KEY = "AIzaSyAMBQJqXVyagFux2lJLHYycU48an_VhQBg"
 EMERGENT_LLM_KEY = "sk-emergent-8Fd925cC7644a35Cd5"
-SECRET_KEY = "your-secret-key-for-jwt-tokens"
+SECRET_KEY = "d7297e935cd5cf978340d7713b478dc2cba12662c1b7fb722006f1246c906d39"
 
 # Initialize Composio client
 # composio_client = Composio(provider=OpenAIProvider(), api_key=EMERGENT_LLM_KEY)
